@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: soulsync_dev
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6380:6379"
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6334:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+  backend:
+    build: ./apps/backend
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - QDRANT_URL=${QDRANT_URL}
+    ports:
+      - "8000:8000"
+    command: ["./entrypoint.sh"]
+
+  celery:
+    build: ./apps/backend
+    depends_on:
+      - redis
+    environment:
+      - REDIS_URL=${REDIS_URL}
+    command: ["celery", "-A", "app.celery_worker:app", "worker", "--loglevel=info"]
+
+volumes:
+  pgdata:
+  qdrant_storage:
