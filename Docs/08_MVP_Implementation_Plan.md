@@ -68,23 +68,23 @@
 
 ---
 
-## Phase 1 — Auth & User Profile
+## Phase 1 — Auth & User Profile ✅ **COMPLETED**
 **Duration:** 4–5 days · **Complexity:** Medium
 
 ### Frontend
-- Login screen (Google + Apple buttons)
-- Onboarding form
+- ✅ Login screen (Google + Apple buttons) - Apple removed per requirements
+- ✅ Onboarding form
   - **Required:** Name, Age Range, Occupation, Relationship Status
   - **Optional:** Interests, Personal Goals, Trusted Contact
-- **Welcome Screen** — SoulSync introduction shown immediately after onboarding form submission
-- Profile screen (view + edit)
-- Zustand auth store; JWT persisted in `SecureStore`
+- ✅ **Welcome Screen** — SoulSync introduction shown immediately after onboarding form submission
+- ✅ Profile screen (view + edit)
+- ✅ Zustand auth store; JWT persisted in `localStorage` (web)
 
 ### Backend
-- `POST /auth/google` — server-side ID token verification → upsert user → return JWT
-- `POST /auth/apple` — server-side ID token verification → upsert user → return JWT
-- JWT middleware (all subsequent routes protected)
-- `GET /profile/me`, `PUT /profile/me`, `POST /profile/onboarding`
+- ✅ `POST /auth/google` — server-side ID token verification → upsert user → return JWT
+- ❌ `POST /auth/apple` — server-side ID token verification → upsert user → return JWT (removed per requirements)
+- ✅ JWT middleware (all subsequent routes protected)
+- ✅ `GET /profile/me`, `PUT /profile/me`, `POST /profile/onboarding`
 
 ### Database
 ```sql
@@ -119,9 +119,12 @@ user_profiles (
 - Optional "Trusted Contact" → create row in `trust_circle_members` (alerts remain **inactive** until Phase 6)
 
 ### Acceptance Criteria
-- Re-login does not create duplicate users
-- Unauthenticated requests return `401`
-- JWT persists across app restarts
+- ✅ Re-login does not create duplicate users
+- ✅ Unauthenticated requests return `401`
+- ✅ JWT persists across app restarts
+
+> **Done when:** A real user signs in with Google, completes onboarding, and sees their profile data on the Profile screen — and re-login does not create a second account.
+> **Status:** ✅ **COMPLETED** - June 23, 2026
 
 ---
 
@@ -179,6 +182,8 @@ messages (
 - First conversation shows discovery questions; subsequent sessions use regular prompt
 - Redis context correctly prefixes conversation history
 
+> **Done when:** A user sends a message and gets a streaming AI reply with the typewriter effect; the first session opens with discovery questions and a second session does not.
+
 ---
 
 ## Phase 3 — Memory System
@@ -212,6 +217,8 @@ messages (
 - Qdrant points visible after 5+ messages exchanged
 - Phase 3+ chat naturally references facts from earlier conversations
 - Memory extraction is truly async (does not block chat response)
+
+> **Done when:** In a new chat session the AI references something the user mentioned in a previous session (e.g., a name or topic), and the Profile screen shows a non-zero memory count.
 
 ---
 
@@ -266,6 +273,8 @@ goal_checkins (
 - AI-inferred check-ins appear in check-in history with `source = 'ai_inferred'`
 - Stale goals (> 3 days) trigger nudge notification
 - Goals screen renders progress correctly
+
+> **Done when:** A user creates a goal, taps check-in, and the AI in the next chat message references that goal's current progress; a stale goal triggers a nudge.
 
 ---
 
@@ -339,6 +348,8 @@ ALTER TABLE users ADD COLUMN preferred_checkin_time TIME;
 - FCM push received on a physical device
 - Insight dismiss (surface) updates `surfaced = true`
 - Empty state renders cleanly for new users
+
+> **Done when:** The Home screen shows a "Today's Insight" card with real generated content and a 7-day mood timeline; a push notification arrives on a physical device.
 
 ---
 
@@ -420,6 +431,8 @@ ALTER TABLE user_profiles ADD COLUMN risk_monitoring_enabled BOOLEAN DEFAULT tru
 - Crisis keyword bypasses the 4-hour cycle and triggers immediately
 - Risk monitoring toggle in Settings disables scoring for that user
 
+> **Done when:** Typing a crisis keyword triggers an SMS to the trusted contact within seconds; sending the same signal again within 24h does not send a second SMS.
+
 ---
 
 ## Phase 7 — MVP Hardening & Release
@@ -465,6 +478,8 @@ ALTER TABLE user_profiles ADD COLUMN risk_monitoring_enabled BOOLEAN DEFAULT tru
 - All `401`/`403` boundary checks pass (automated test run)
 - `DELETE /account` removes all data from Postgres, Qdrant, and Redis
 - Sentry capturing events from production
+
+> **Done when:** The TestFlight build cold-starts without a crash, "Delete Account" wipes all data from all three stores, and Sentry captures the test event.
 
 ---
 
