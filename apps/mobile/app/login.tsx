@@ -36,12 +36,23 @@ export default function LoginScreen() {
       }
       
       if (event.data.type === 'soulsync_auth_success') {
-        logger.info('Received auth success message from popup', { token: event.data.token?.substring(0, 20) + '...' });
+        logger.info('Received auth success message from popup', { 
+          token: event.data.token?.substring(0, 20) + '...',
+          user: event.data.user,
+          userKeys: event.data.user ? Object.keys(event.data.user) : 'no user'
+        });
         setIsLoading(false);
         
-        // Store token
+        // Store token AND user data
         if (typeof window !== 'undefined') {
           window.localStorage.setItem('soulsync_token', event.data.token);
+          window.localStorage.setItem('soulsync_user', JSON.stringify(event.data.user));
+          logger.info('Stored in localStorage', {
+            tokenStored: !!window.localStorage.getItem('soulsync_token'),
+            userStored: !!window.localStorage.getItem('soulsync_user'),
+            userId: event.data.user?.id,
+            userStr: window.localStorage.getItem('soulsync_user')?.substring(0, 100)
+          });
         }
         
         // Check if onboarding is completed
@@ -84,11 +95,20 @@ export default function LoginScreen() {
         const data = await response.json();
         logger.info('Profile retrieved', data);
         
+        // Merge profile user_id into stored user data for WebSocket
+        if (typeof window !== 'undefined') {
+          const existingUserStr = window.localStorage.getItem('soulsync_user');
+          let existingUser = existingUserStr ? JSON.parse(existingUserStr) : {};
+          existingUser.id = existingUser.id || data.user_id || data.id;
+          existingUser.user_id = data.user_id || existingUser.id;
+          window.localStorage.setItem('soulsync_user', JSON.stringify(existingUser));
+          logger.info('Updated user data with user_id', { userId: existingUser.id, mergedUser: existingUser });
+        }
+        
         // Check if required onboarding fields are present
         if (data.name && data.age_range && data.occupation && data.relationship_status) {
-          logger.info('Onboarding completed, navigating to profile');
-          Alert.alert('Success', 'Authentication successful! Welcome to SoulSync.');
-          router.replace('/profile');
+          logger.info('Onboarding completed, navigating to tabs');
+          router.replace('/(tabs)/home');
         } else {
           logger.info('Onboarding not completed, navigating to onboarding');
           router.replace('/onboarding');

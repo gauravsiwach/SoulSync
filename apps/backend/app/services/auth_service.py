@@ -20,7 +20,7 @@ class AuthService:
         self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
         self.secret_key = settings.JWT_SECRET or secrets.token_urlsafe(32)
         self.algorithm = "HS256"
-        self.access_token_expire_minutes = 30
+        self.access_token_expire_minutes = 1440  # 24 hours
         
         # Google OAuth setup (using direct HTTP calls)
         self.google_client_id = settings.GOOGLE_CLIENT_ID

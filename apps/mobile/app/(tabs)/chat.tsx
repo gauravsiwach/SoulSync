@@ -12,10 +12,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 const logger = {
-  info: (msg: string, data?: any) => console.log(`[CHAT] ${msg}`, data),
-  error: (msg: string, error?: any) => console.error(`[CHAT ERROR] ${msg}`, error),
+  info: (msg: string, data?: any) => console.log(`[CHAT_TAB] ${msg}`, data),
+  error: (msg: string, error?: any) => console.error(`[CHAT_TAB ERROR] ${msg}`, error),
 };
 
 interface Message {
@@ -26,13 +27,18 @@ interface Message {
   isStreaming?: boolean;
 }
 
-export default function ChatScreen() {
+export default function ChatTabScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const conversationIdParam = params.conversationId as string;
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [streamingMessage, setStreamingMessage] = useState('');
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(conversationIdParam || null);
   const flatListRef = useRef<FlatList>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const userId = useRef<string>('');
@@ -48,7 +54,7 @@ export default function ChatScreen() {
         try {
           const user = JSON.parse(userStr);
           userId.current = user.id || '';
-          logger.info('User ID loaded', userId.current);
+          logger.info('User ID loaded', { userId: userId.current });
         } catch (error) {
           logger.error('Error parsing user data', error);
         }
@@ -56,27 +62,111 @@ export default function ChatScreen() {
     }
   }, []);
 
+  // Update conversation ID when navigating from conversation list
+  useEffect(() => {
+    if (conversationIdParam && conversationIdParam !== currentConversationId) {
+      logger.info('Conversation ID from navigation', { conversationIdParam });
+      setCurrentConversationId(conversationIdParam);
+    }
+  }, [conversationIdParam]);
+
+  // Load messages from API if conversation ID is provided
+  useEffect(() => {
+    if (currentConversationId) {
+      loadMessages(currentConversationId);
+    }
+  }, [currentConversationId]);
+
+  const loadMostRecentConversation = async () => {
+    try {
+      logger.info('Loading most recent conversation');
+      const token = typeof window !== 'undefined' && window.localStorage
+        ? window.localStorage.getItem('soulsync_token')
+        : null;
+
+      if (!token) return;
+
+      const response = await fetch('http://localhost:8000/api/conversations', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const conversations = data.conversations || [];
+        if (conversations.length > 0) {
+          const mostRecent = conversations[0];
+          logger.info('Loaded most recent conversation', { conversationId: mostRecent.id });
+          setCurrentConversationId(mostRecent.id);
+          await loadMessages(mostRecent.id);
+        }
+      }
+    } catch (error) {
+      logger.error('Error loading most recent conversation', error);
+    }
+  };
+
+  const loadMessages = async (convId: string) => {
+    try {
+      logger.info('Loading messages for conversation', { conversationId: convId });
+      const token = typeof window !== 'undefined' && window.localStorage
+        ? window.localStorage.getItem('soulsync_token')
+        : null;
+
+      if (!token) return;
+
+      const response = await fetch(`http://localhost:8000/api/conversations/${convId}/messages`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const loadedMessages: Message[] = data.messages.map((msg: any) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.created_at),
+        }));
+        setMessages(loadedMessages);
+        logger.info('Messages loaded', { count: loadedMessages.length });
+      }
+    } catch (error) {
+      logger.error('Error loading messages', error);
+    }
+  };
+
   // Connect to WebSocket
   useEffect(() => {
-    if (!userId.current) return;
+    if (!userId.current) {
+      logger.error('Cannot connect: No user ID');
+      return;
+    }
+
+    if (!currentConversationId) {
+      logger.info('Not connecting to WebSocket: No conversation ID');
+      return;
+    }
 
     const token = typeof window !== 'undefined' && window.localStorage 
       ? window.localStorage.getItem('soulsync_token')
       : null;
 
     if (!token) {
-      logger.error('No token found');
+      logger.error('Cannot connect: No token');
       return;
     }
 
     const connectWebSocket = () => {
-      const wsUrl = `ws://localhost:8000/ws/chat/${userId.current}?token=${token}`;
-      logger.info('Connecting to WebSocket', wsUrl);
+      const wsUrl = `ws://localhost:8000/ws/chat/${userId.current}?token=${token}&conversation_id=${currentConversationId}`;
+      logger.info('Connecting to WebSocket', { wsUrl, userId: userId.current, hasToken: !!token, conversationId: currentConversationId });
 
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
-        logger.info('WebSocket connected');
+        logger.info('WebSocket connected successfully');
         setIsConnected(true);
         setReconnectAttempts(0);
       };
@@ -88,6 +178,7 @@ export default function ChatScreen() {
 
           if (data.type === 'conversation_id') {
             logger.info('Conversation ID received', data.conversation_id);
+            setCurrentConversationId(data.conversation_id);
           } else if (data.type === 'token') {
             setStreamingMessage(prev => prev + data.content);
           } else if (data.type === 'end') {
@@ -115,8 +206,8 @@ export default function ChatScreen() {
         setIsConnected(false);
       };
 
-      wsRef.current.onclose = () => {
-        logger.info('WebSocket closed');
+      wsRef.current.onclose = (event) => {
+        logger.info('WebSocket closed', { code: event.code, reason: event.reason });
         setIsConnected(false);
         
         // Attempt reconnection if not max attempts
@@ -145,7 +236,7 @@ export default function ChatScreen() {
         wsRef.current.close();
       }
     };
-  }, [userId.current]);
+  }, [userId.current, currentConversationId]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -155,7 +246,24 @@ export default function ChatScreen() {
   }, [messages, streamingMessage]);
 
   const sendMessage = () => {
-    if (!inputText.trim() || isLoading || !isConnected || !wsRef.current) return;
+    logger.info('Send button pressed', {
+      hasInput: !!inputText.trim(),
+      inputLength: inputText.length,
+      isLoading,
+      isConnected,
+      hasWebSocket: !!wsRef.current,
+      wsReadyState: wsRef.current?.readyState
+    });
+
+    if (!inputText.trim() || isLoading || !isConnected || !wsRef.current) {
+      logger.error('Cannot send message - check failed', {
+        hasInput: !!inputText.trim(),
+        isLoading,
+        isConnected,
+        hasWebSocket: !!wsRef.current
+      });
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -202,6 +310,43 @@ export default function ChatScreen() {
     </View>
   );
 
+  const handleNewConversation = async () => {
+    try {
+      logger.info('+ button clicked - Creating new conversation');
+      const token = typeof window !== 'undefined' && window.localStorage
+        ? window.localStorage.getItem('soulsync_token')
+        : null;
+
+      if (!token) {
+        logger.error('No token found, cannot create conversation');
+        return;
+      }
+
+      logger.info('Sending POST to /api/conversations');
+      const response = await fetch('http://localhost:8000/api/conversations', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      logger.info('POST response received', { status: response.status, ok: response.ok });
+
+      if (response.ok) {
+        const data = await response.json();
+        logger.info('New conversation created successfully', { conversationId: data.id, data });
+        setCurrentConversationId(data.id);
+        setMessages([]);
+        logger.info('State updated, WebSocket should reconnect');
+      } else {
+        const errorText = await response.text();
+        logger.error('Failed to create conversation', { status: response.status, errorText });
+      }
+    } catch (error) {
+      logger.error('Error creating new conversation', error);
+    }
+  };
+
   const renderStreamingMessage = () => {
     if (!streamingMessage) return null;
 
@@ -223,11 +368,21 @@ export default function ChatScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>SoulSync Chat</Text>
-          <View style={styles.headerSubtitleRow}>
-            <Text style={styles.headerSubtitle}>Your AI Companion</Text>
-            <View style={[styles.connectionIndicator, isConnected ? styles.connected : styles.disconnected]} />
+          <View style={styles.headerLeft}>
+            <TouchableOpacity onPress={() => router.push('/conversations')} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <View>
+              <Text style={styles.headerTitle}>SoulSync Chat</Text>
+              <View style={styles.headerSubtitleRow}>
+                <Text style={styles.headerSubtitle}>Your AI Companion</Text>
+                <View style={[styles.connectionIndicator, isConnected ? styles.connected : styles.disconnected]} />
+              </View>
+            </View>
           </View>
+          <TouchableOpacity onPress={handleNewConversation} style={styles.newChatButton}>
+            <Ionicons name="add" size={24} color="#fff" />
+          </TouchableOpacity>
         </View>
 
         {/* Messages */}
@@ -279,9 +434,16 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#667eea',
     padding: 20,
-    alignItems: 'center',
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  backButton: {
+    marginRight: 12,
   },
   headerTitle: {
     fontSize: 24,
@@ -292,6 +454,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
+  },
+  newChatButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
   },
   headerSubtitle: {
     fontSize: 14,

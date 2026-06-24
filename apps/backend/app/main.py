@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.chat import router as chat_router
 from app.api.auth import router as auth_router
 from app.api.profile import router as profile_router
+from app.api.conversations import router as conversations_router
+from app.api.websocket import router as websocket_router
 from app.core.logging import configure_logging, get_logger
 from app.core.config import get_settings
 from app.db.database import Base, engine
@@ -71,6 +73,8 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(profile_router)
 app.include_router(chat_router)
+app.include_router(conversations_router, prefix="/api", tags=["conversations"])
+app.include_router(websocket_router, tags=["websocket"])
 
 
 @app.get("/health")

@@ -14,7 +14,7 @@ export default function WelcomeScreen() {
   const router = useRouter();
 
   const handleGetStarted = () => {
-    router.replace('/profile');
+    router.push('/(tabs)/home');
   };
 
   return (

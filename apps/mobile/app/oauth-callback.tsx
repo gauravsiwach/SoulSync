@@ -97,13 +97,42 @@ export default function OAuthCallbackScreen() {
       });
 
       const data = await response.json();
-      logger.info('Backend response', { status: response.status, data });
+      logger.info('Backend response', { 
+        status: response.status, 
+        dataKeys: Object.keys(data),
+        hasAccessToken: !!data.access_token,
+        hasUser: !!data.user,
+        data: data 
+      });
 
       if (response.ok) {
         setStatus('Authentication successful!');
         
-        // TODO: Store the access token securely
+        // Store the access token and user data
         logger.info('Authentication successful', { user: data.user });
+        
+        if (typeof window !== 'undefined' && window.localStorage) {
+          logger.info('About to store in localStorage', {
+            accessToken: data.access_token ? data.access_token.substring(0, 50) + '...' : 'null',
+            user: data.user
+          });
+          
+          window.localStorage.setItem('soulsync_token', data.access_token);
+          window.localStorage.setItem('soulsync_user', JSON.stringify(data.user));
+          
+          // Verify storage
+          const storedToken = window.localStorage.getItem('soulsync_token');
+          const storedUser = window.localStorage.getItem('soulsync_user');
+          
+          logger.info('Verification after storage', {
+            tokenStored: !!storedToken,
+            userStored: !!storedUser,
+            storedToken: storedToken ? storedToken.substring(0, 50) + '...' : 'null',
+            storedUser: storedUser ? storedUser.substring(0, 100) + '...' : 'null'
+          });
+        } else {
+          logger.error('localStorage not available');
+        }
         
         Alert.alert(
           'Success!',
@@ -112,8 +141,8 @@ export default function OAuthCallbackScreen() {
             {
               text: 'OK',
               onPress: () => {
-                // Navigate to profile or main app
-                router.replace('/profile');
+                // Navigate to tab layout
+                router.replace('/(tabs)/home');
               },
             },
           ]

@@ -128,22 +128,22 @@ user_profiles (
 
 ---
 
-## Phase 2 — AI Companion Chat
+## Phase 2 — AI Companion Chat ✅ **COMPLETED**
 **Duration:** 5–7 days · **Complexity:** High
 
 ### Frontend
-- Chat screen with streaming typewriter effect
-- Conversation list screen
-- **Basic tab navigation** (Home stub, Chat, Goals stub, Profile) — Goals tab shows empty state until Phase 4
-- WebSocket connection management with reconnect logic
+- ✅ Chat screen with streaming typewriter effect
+- ✅ Conversation list screen
+- ✅ **Basic tab navigation** (Home stub, Chat, Goals stub, Profile) — Goals tab shows empty state until Phase 4
+- ✅ WebSocket connection management with reconnect logic
 
 ### Backend
-- `WS /ws/chat/{user_id}` — token stream frames:
+- ✅ `WS /ws/chat/{user_id}` — token stream frames:
   - `{ "type": "token", "content": "..." }` per chunk
   - `{ "type": "end" }` on completion
-- `GET /conversations` — list user conversations
-- `GET /conversations/{id}/messages` — message history
-- Redis working memory: last 10 messages per user (`chat_context:{user_id}`, 30-min TTL)
+- ✅ `GET /conversations` — list user conversations
+- ✅ `GET /conversations/{id}/messages` — message history
+- ✅ Redis working memory: last 10 messages per user (`chat_context:{user_id}`, 30-min TTL)
 
 ### Database
 ```sql
@@ -167,22 +167,26 @@ messages (
 ```
 
 ### AI — Two System Prompts
-1. **Discovery Conversation Prompt** (first session only — `is_first_conversation = true`)
+1. ✅ **Discovery Conversation Prompt** (first session only — `is_first_conversation = true`)
    - AI proactively asks 3–4 structured questions covering: personality/values, current life situation, emotional state, relationships/support system
    - Warm, curious tone; does not feel like a clinical intake form
-2. **Regular Companion Prompt** (all subsequent sessions)
+   - Located in `app/core/prompts/discovery.py`
+2. ✅ **Regular Companion Prompt** (all subsequent sessions)
    - Empathetic, non-judgmental; references user profile context
+   - Located in `app/core/prompts/companion.py`
 
-**LangGraph:** Single-node state machine in Phase 2; expands in Phase 3+.  
+**LangGraph:** Single-node state machine in Phase 2; expands in Phase 3+.
 **LLM Gateway:** `llm_gateway.py` wraps OpenAI calls (GPT-4o primary, GPT-4o-mini fallback).
+**Future Improvement:** Post-Phase 3, implement LLM-driven prompt selection based on user context.
 
 ### Acceptance Criteria
-- Streaming tokens render progressively in chat UI
-- Messages persisted to Postgres after each turn
-- First conversation shows discovery questions; subsequent sessions use regular prompt
-- Redis context correctly prefixes conversation history
+- ✅ Streaming tokens render progressively in chat UI
+- ✅ Messages persisted to Postgres after each turn
+- ✅ First conversation shows discovery questions; subsequent sessions use regular prompt
+- ✅ Redis context correctly prefixes conversation history
 
 > **Done when:** A user sends a message and gets a streaming AI reply with the typewriter effect; the first session opens with discovery questions and a second session does not.
+> **Status:** ✅ **COMPLETED** - June 24, 2026
 
 ---
 
@@ -196,9 +200,9 @@ messages (
 
 ### Backend
 **Memory Extraction Worker** (Celery task, fires async after every assistant response):
-- Every 5 messages → call GPT-4o-mini with extraction prompt
+- Every 5 messages → call LLM via `llm_gateway` (OpenAI or Ollama based on `AI_PROVIDER` config) with extraction prompt
 - Structured output: `{ facts, emotions, people_mentioned, topics, summary }`
-- Embed `summary` with `text-embedding-3-small` → upsert vector into Qdrant `episodic_memory`
+- Embed `summary` with embedding model → upsert vector into Qdrant `episodic_memory`
 - Update `user_profiles.ai_profile JSONB` with latest extracted facts
 
 **Qdrant `episodic_memory` collection** (created on backend startup):
@@ -293,7 +297,7 @@ goal_checkins (
 ### Backend
 **Insight Generator** (Celery beat, runs daily at 8 AM user local time):
 1. Fetch last 7 days: Qdrant memories + `ai_profile` + `goal_checkins`
-2. Call GPT-4o-mini with insight generation prompt → structured JSON: 3–5 insights
+2. Call LLM via `llm_gateway` (OpenAI or Ollama based on `AI_PROVIDER` config) with insight generation prompt → structured JSON: 3–5 insights
 3. Write to `user_insights` (keep max 5 active; archive older ones)
 
 **Mood Summary:** `GET /mood/summary` — aggregate `mood_tag` from `messages` over last 7 days.
