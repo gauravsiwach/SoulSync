@@ -5,6 +5,7 @@ from app.api.auth import router as auth_router
 from app.api.profile import router as profile_router
 from app.api.conversations import router as conversations_router
 from app.api.websocket import router as websocket_router
+from app.api.memory import router as memory_router
 from app.core.logging import configure_logging, get_logger
 from app.core.config import get_settings
 from app.db.database import Base, engine
@@ -21,7 +22,7 @@ app = FastAPI(title="SoulSync Backend")
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on startup"""
+    """Initialize database and Qdrant on startup"""
     try:
         logger.info("database_initialization_started")
         
@@ -59,6 +60,16 @@ async def startup_event():
     except Exception as e:
         logger.error("database_initialization_failed", error=str(e))
         raise
+    
+    # Initialize Qdrant collection for Phase 3
+    try:
+        from app.services.qdrant_service import qdrant_service
+        logger.info("qdrant_initialization_started")
+        qdrant_service.initialize_collection()
+        logger.info("qdrant_initialization_completed")
+    except Exception as e:
+        logger.error("qdrant_initialization_failed", error=str(e))
+        # Don't raise - allow app to start even if Qdrant fails
 
 # Add CORS middleware
 app.add_middleware(
@@ -75,6 +86,7 @@ app.include_router(profile_router)
 app.include_router(chat_router)
 app.include_router(conversations_router, prefix="/api", tags=["conversations"])
 app.include_router(websocket_router, tags=["websocket"])
+app.include_router(memory_router, prefix="/api", tags=["memory"])
 
 
 @app.get("/health")

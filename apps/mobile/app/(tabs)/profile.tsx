@@ -26,13 +26,21 @@ interface UserProfile {
   personal_goals: string;
 }
 
+interface MemorySummary {
+  memory_count: number;
+  facts: string[];
+  last_updated: number | null;
+}
+
 export default function ProfileTabScreen() {
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [memorySummary, setMemorySummary] = useState<MemorySummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadUserProfile();
+    loadMemorySummary();
   }, []);
 
   const loadUserProfile = async () => {
@@ -69,6 +77,37 @@ export default function ProfileTabScreen() {
       logger.error('Error loading profile', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadMemorySummary = async () => {
+    try {
+      logger.info('Loading memory summary');
+      
+      const token = typeof window !== 'undefined' && window.localStorage
+        ? window.localStorage.getItem('soulsync_token')
+        : null;
+      
+      if (!token) {
+        logger.error('No token found for memory summary');
+        return;
+      }
+      
+      const response = await fetch('http://localhost:8000/api/memory/summary', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setMemorySummary(data);
+        logger.info('Memory summary loaded', data);
+      } else {
+        logger.error('Failed to load memory summary', response.status);
+      }
+    } catch (error) {
+      logger.error('Error loading memory summary', error);
     }
   };
 
@@ -137,6 +176,33 @@ export default function ProfileTabScreen() {
             <Text style={styles.value}>{user.relationship_status || 'Not specified'}</Text>
           </View>
         </View>
+
+        {memorySummary && memorySummary.memory_count > 0 && (
+          <View style={styles.section}>
+            <View style={styles.memoryHeader}>
+              <Text style={styles.sectionTitle}>Memory Summary</Text>
+              <View style={styles.memoryCountBadge}>
+                <Text style={styles.memoryCountText}>{memorySummary.memory_count}</Text>
+              </View>
+            </View>
+            <Text style={styles.memorySubtitle}>Things I know about you</Text>
+            {memorySummary.facts && memorySummary.facts.length > 0 ? (
+              <View style={styles.factsContainer}>
+                {memorySummary.facts.slice(0, 5).map((fact, index) => (
+                  <View key={index} style={styles.factItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#667eea" />
+                    <Text style={styles.factText}>{fact}</Text>
+                  </View>
+                ))}
+                {memorySummary.facts.length > 5 && (
+                  <Text style={styles.moreFactsText}>+ {memorySummary.facts.length - 5} more</Text>
+                )}
+              </View>
+            ) : (
+              <Text style={styles.noData}>No memories yet</Text>
+            )}
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Interests</Text>
@@ -328,5 +394,45 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  memoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  memoryCountBadge: {
+    backgroundColor: '#667eea',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  memoryCountText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  memorySubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  factsContainer: {
+    gap: 8,
+  },
+  factItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  factText: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
+  },
+  moreFactsText: {
+    fontSize: 12,
+    color: '#667eea',
+    fontStyle: 'italic',
   },
 });

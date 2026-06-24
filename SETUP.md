@@ -267,7 +267,44 @@ TWILIO_FROM_NUMBER=your_twilio_number
 
 ---
 
-## 🐛 Troubleshooting
+## �️ Database UI Access
+
+### PostgreSQL (pgAdmin)
+- **Web UI:** http://localhost:8081
+- **Username:** postgres
+- **Password:** postgres
+- **Database:** soulsync_dev
+- **Host:** localhost
+- **Port:** 5433
+
+### Redis (RedisInsight)
+- **Web UI:** http://localhost:8001
+- **Host:** localhost
+- **Port:** 6380
+
+### Qdrant (Built-in Dashboard)
+- **Web UI:** http://localhost:6334/dashboard
+- **Collections:** View all collections and their schemas
+- **Points:** Browse and search vector points
+- **Payloads:** Inspect metadata stored with vectors
+
+### Command-line Access
+
+```bash
+# PostgreSQL
+psql -h localhost -p 5433 -U postgres -d soulsync_dev
+
+# Redis
+redis-cli -h localhost -p 6380
+
+# Qdrant - List collections
+curl http://localhost:6334/collections
+
+# Qdrant - Get collection info
+curl http://localhost:6334/collections/episodic_memory
+```
+
+## �🐛 Troubleshooting
 
 ### Common Issues
 

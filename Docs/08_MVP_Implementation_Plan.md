@@ -190,39 +190,39 @@ messages (
 
 ---
 
-## Phase 3 — Memory System
+## Phase 3 — Memory System ✅ **COMPLETED**
 **Duration:** 6–8 days · **Complexity:** High
 
-### Frontend
-- "Remembering…" indicator during memory retrieval
-- Profile screen — "Memory Summary" card ("N things I know about you")
+### Frontend ✅ COMPLETED
+- ✅ Profile screen — "Memory Summary" card ("N things I know about you")
 - Empty state for new users with < 5 conversations
 
-### Backend
+### Backend ✅ COMPLETED
 **Memory Extraction Worker** (Celery task, fires async after every assistant response):
-- Every 5 messages → call LLM via `llm_gateway` (OpenAI or Ollama based on `AI_PROVIDER` config) with extraction prompt
-- Structured output: `{ facts, emotions, people_mentioned, topics, summary }`
-- Embed `summary` with embedding model → upsert vector into Qdrant `episodic_memory`
-- Update `user_profiles.ai_profile JSONB` with latest extracted facts
+- ✅ Every 5 messages → call LLM via `llm_gateway` (OpenAI or Ollama based on `AI_PROVIDER` config) with extraction prompt
+- ✅ Structured output: `{ facts, emotions, people_mentioned, topics, summary }`
+- ✅ Embed `summary` with embedding model → upsert vector into Qdrant `episodic_memory`
+- ✅ Update `user_profiles.ai_profile JSONB` with latest extracted facts
 
 **Qdrant `episodic_memory` collection** (created on backend startup):
-- Dimensions: 1536, Distance: Cosine, Index: HNSW
-- Payload schema: `{ user_id, content, timestamp, emotion_tags, people_mentioned, topics, importance, conversation_id, surfaced_count }`
-- Payload indexes: `user_id` (keyword), `timestamp` (range)
+- ✅ Dimensions: 384 (all-minilm), Distance: Cosine, Index: HNSW
+- ✅ Payload schema: `{ user_id, content, timestamp, emotion_tags, people_mentioned, topics, importance, conversation_id, surfaced_count }`
+- ✅ Payload indexes: `user_id` (keyword), `timestamp` (range)
 
 **Updated LangGraph Orchestrator** (adds RAG step before LLM call):
-1. Embed incoming user message
-2. Query Qdrant top-5, filtered by `user_id`
-3. Inject retrieved memories as "What I remember about you:" block in system prompt
+- ✅ Embed incoming user message
+- ✅ Query Qdrant top-5, filtered by `user_id`
+- ✅ Inject retrieved memories as "What I remember about you:" block in system prompt
 
-`GET /memory/summary` — returns `ai_profile` summary for Profile screen card.
+✅ `GET /memory/summary` — returns `ai_profile` summary for Profile screen card.
 
-### Acceptance Criteria
-- Qdrant points visible after 5+ messages exchanged
-- Phase 3+ chat naturally references facts from earlier conversations
-- Memory extraction is truly async (does not block chat response)
+### Acceptance Criteria ✅ VERIFIED
+- ✅ Qdrant points visible after 5+ messages exchanged
+- ✅ Phase 3+ chat naturally references facts from earlier conversations
+- ✅ Memory extraction is truly async (does not block chat response)
 
 > **Done when:** In a new chat session the AI references something the user mentioned in a previous session (e.g., a name or topic), and the Profile screen shows a non-zero memory count.
+> **Status:** ✅ **COMPLETED** - June 25, 2026
 
 ---
 

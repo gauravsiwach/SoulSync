@@ -157,6 +157,7 @@ async def websocket_chat_endpoint(
                         user_id=user_id,
                         message=user_message,
                         is_first_conversation=is_first_conversation,
+                        conversation_id=conversation_id,
                         db=db
                     ):
                         full_response += chunk
