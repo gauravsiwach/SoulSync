@@ -6,6 +6,8 @@ from app.api.profile import router as profile_router
 from app.api.conversations import router as conversations_router
 from app.api.websocket import router as websocket_router
 from app.api.memory import router as memory_router
+from app.api.goals import router as goals_router
+from app.api.checkins import router as checkins_router
 from app.core.logging import configure_logging, get_logger
 from app.core.config import get_settings
 from app.db.database import Base, engine
@@ -76,7 +78,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:8082", "http://127.0.0.1:8082"],  # Mobile app URL
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -87,6 +89,8 @@ app.include_router(chat_router)
 app.include_router(conversations_router, prefix="/api", tags=["conversations"])
 app.include_router(websocket_router, tags=["websocket"])
 app.include_router(memory_router, prefix="/api", tags=["memory"])
+app.include_router(goals_router, prefix="/api", tags=["goals"])
+app.include_router(checkins_router, prefix="/api", tags=["checkins"])
 
 
 @app.get("/health")

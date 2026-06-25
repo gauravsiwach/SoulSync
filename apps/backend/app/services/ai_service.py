@@ -5,13 +5,15 @@ from typing import AsyncGenerator, List, Dict, Optional
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.core.llm_gateway import llm_gateway
-from app.core.prompts import DISCOVERY_SYSTEM_PROMPT, REGULAR_COMPANION_PROMPT
+from app.core.prompts import DISCOVERY_SYSTEM_PROMPT, REGULAR_COMPANION_PROMPT, GOAL_COACH_SYSTEM_PROMPT
 from app.services.redis_service import redis_service
 from app.services.memory_extraction_service import should_extract_memory, extract_memory_from_conversation
 from app.services.qdrant_service import qdrant_service
 from app.services.embedding_service import embedding_service
 from app.db.database import get_db
 from app.models.user_profile import UserProfile
+from app.models.goal import Goal
+from app.models.goal_checkin import GoalCheckin
 from sqlalchemy.orm import Session
 
 settings = get_settings()
@@ -47,6 +49,47 @@ User Profile:
         except Exception as e:
             logger.error("error_fetching_user_profile", user_id=user_id, error=str(e))
             return "No profile information available."
+    
+    def get_goal_context(self, user_id: str, db: Session) -> str:
+        """Get active goals and recent check-ins context for AI responses"""
+        try:
+            from uuid import UUID
+            active_goals = db.query(Goal).filter(
+                Goal.user_id == UUID(user_id),
+                Goal.status == 'active'
+            ).limit(3).all()
+            
+            if not active_goals:
+                return ""
+            
+            context = "\n\nActive Goals:\n"
+            for goal in active_goals:
+                context += f"- {goal.title}"
+                if goal.description:
+                    context += f": {goal.description}"
+                if goal.category:
+                    context += f" (Category: {goal.category})"
+                if goal.target_date:
+                    context += f" (Target: {goal.target_date})"
+                context += "\n"
+                
+                # Get last 3 check-ins for this goal
+                checkins = db.query(GoalCheckin).filter(
+                    GoalCheckin.goal_id == goal.id
+                ).order_by(GoalCheckin.created_at.desc()).limit(3).all()
+                
+                if checkins:
+                    context += "  Recent check-ins:\n"
+                    for checkin in checkins:
+                        context += f"  - Score: {checkin.progress_score}/5"
+                        if checkin.note:
+                            context += f", Note: {checkin.note}"
+                        context += f" ({checkin.created_at.strftime('%Y-%m-%d')})\n"
+            
+            return context
+        except Exception as e:
+            logger.error("error_fetching_goal_context", user_id=user_id, error=str(e))
+            return ""
     
     async def get_chat_context(self, user_id: str) -> List[Dict[str, str]]:
         """Retrieve conversation history from Redis"""
@@ -93,6 +136,14 @@ User Profile:
                 messages.append({
                     "role": "system",
                     "content": f"Here's what you know about the user:\n{profile_context}"
+                })
+            
+            # Add goal context if available
+            goal_context = self.get_goal_context(user_id, db)
+            if goal_context:
+                messages.append({
+                    "role": "system",
+                    "content": f"Here's what I know about their goals:\n{goal_context}"
                 })
         
         # Add retrieved memories (RAG) if not first conversation
