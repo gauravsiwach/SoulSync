@@ -284,32 +284,34 @@ goal_checkins (
 
 ---
 
-## Phase 5 — Insights & Personalization
+## Phase 5 — Insights & Personalization ⏳ **IN PROGRESS**
 **Duration:** 4–5 days · **Complexity:** High
 
-### Frontend
-- **Home screen complete:**
+### Frontend ✅ COMPLETED
+- ✅ Home screen complete:
   - Chat entry button (primary CTA)
   - "Today's Insight" card (dismissible)
   - 7-day mood emoji timeline
-- Notifications screen (list, mark-read)
-- FCM permission request on first launch (post-login)
-- Device token registration flow
+- ✅ Notifications screen (list, mark-read)
+- ⏳ FCM permission request on first launch (post-login) - pending Firebase setup
+- ⏳ Device token registration flow - pending Firebase setup
 
-### Backend
+### Backend ✅ COMPLETED (Core Features)
 **Insight Generator** (Celery beat, runs daily at 8 AM user local time):
-1. Fetch last 7 days: Qdrant memories + `ai_profile` + `goal_checkins`
-2. Call LLM via `llm_gateway` (OpenAI or Ollama based on `AI_PROVIDER` config) with insight generation prompt → structured JSON: 3–5 insights
-3. Write to `user_insights` (keep max 5 active; archive older ones)
+- ✅ Fetch last 7 days: Qdrant memories + `ai_profile` + `goal_checkins`
+- ✅ Call LLM via `llm_gateway` (OpenAI or Ollama based on `AI_PROVIDER` config) with insight generation prompt → structured JSON: 3–5 insights
+- ✅ Write to `user_insights` (keep max 5 active; archive older ones)
+- ✅ Manual trigger endpoint: `POST /api/insights/generate` (for testing)
 
-**Mood Summary:** `GET /mood/summary` — aggregate `mood_tag` from `messages` over last 7 days.
+**Mood Summary:** ✅ `GET /mood/summary` — aggregate `mood_tag` from `messages` over last 7 days.
 
 **Endpoints:**
-- `GET /insights/latest`
-- `PATCH /insights/{id}/surface` — mark insight as surfaced/dismissed
-- `POST /notifications/register-device` — store FCM token on user record
+- ✅ `GET /insights/latest`
+- ✅ `PATCH /insights/{id}/surface` — mark insight as surfaced/dismissed
+- ✅ `POST /notifications/register-device` — store FCM token on user record
+- ✅ `GET /notifications` — retrieve user notifications
 
-**Daily check-in push:** Celery beat → FCM at user's `preferred_checkin_time`.
+**Daily check-in push:** ⏳ Celery beat → FCM at user's `preferred_checkin_time` - pending Firebase setup
 
 ### Database
 ```sql
@@ -341,21 +343,23 @@ ALTER TABLE users ADD COLUMN fcm_token TEXT;
 ALTER TABLE users ADD COLUMN preferred_checkin_time TIME;
 ```
 
-### AI
-- Insight generation prompt: structured output, no-repeat constraint (checks against last 5 surfaced insights)
-- `mood_tag` extraction added to Memory Extraction worker
-- Companion Agent: inject 1–2 unsurfaced insights into context when thematically relevant
+### AI ✅ COMPLETED
+- ✅ Insight generation prompt: structured output, no-repeat constraint
+- ✅ `mood_tag` extraction added to Memory Extraction worker
+- ⏳ Companion Agent: inject 1–2 unsurfaced insights into context when thematically relevant - pending implementation
+- ⏳ AI-inferred check-ins: extracted from conversation when user mentions goal progress - pending implementation
 
-### Infrastructure
-- Firebase project created; FCM service account credentials in env: `FIREBASE_SERVICE_ACCOUNT_JSON`
+### Infrastructure ⏳ PENDING
+- ⏳ Firebase project created; FCM service account credentials in env: `FIREBASE_SERVICE_ACCOUNT_JSON` - requires setup
 
 ### Acceptance Criteria
-- 3–5 insights generated after 7+ days of data
-- FCM push received on a physical device
-- Insight dismiss (surface) updates `surfaced = true`
-- Empty state renders cleanly for new users
+- ✅ 3–5 insights generated after 7+ days of data
+- ⏳ FCM push received on a physical device - pending Firebase setup
+- ✅ Insight dismiss (surface) updates `surfaced = true`
+- ✅ Empty state renders cleanly for new users
 
 > **Done when:** The Home screen shows a "Today's Insight" card with real generated content and a 7-day mood timeline; a push notification arrives on a physical device.
+> **Status:** ⏳ **IN PROGRESS** - June 25, 2026 (core features completed, Firebase/push notifications pending)
 
 ---
 

@@ -1,7 +1,7 @@
 import os
 import json
 import time
-from typing import AsyncGenerator, List, Dict, Optional
+from typing import AsyncGenerator, List, Dict, Optional, Any
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.core.llm_gateway import llm_gateway
@@ -264,6 +264,102 @@ User Profile:
                 logger.error("memory_extraction_triggered_failed", user_id=user_id, error=result.get("error"))
         except Exception as e:
             logger.error("memory_extraction_task_failed", user_id=user_id, error=str(e))
+
+    def generate_insights(self, context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Generate insights from user data using LLM"""
+        import asyncio
+        try:
+            # Build insight generation prompt
+            prompt = f"""
+You are an insight generator for a personal growth app. Analyze the user's data from the last 7 days and generate 3-5 meaningful insights.
+
+User Data:
+- Memories: {json.dumps(context.get('memories', []), indent=2)}
+- Message count: {context.get('message_count', 0)}
+- Check-in count: {context.get('checkin_count', 0)}
+- Recent check-ins: {json.dumps(context.get('recent_checkins', []), indent=2)}
+
+Generate insights in the following JSON format:
+[
+  {{
+    "category": "mood_trend|goal_drift|positive_pattern|area_of_growth",
+    "content": "Specific insight based on the data",
+    "confidence": 0.0-1.0
+  }}
+]
+
+Guidelines:
+- Keep insights specific and actionable
+- Focus on patterns and trends
+- Be encouraging but realistic
+- Avoid repeating similar insights
+- Maximum 5 insights
+"""
+
+            # generate_completion is an async generator - collect all chunks in a thread
+            from concurrent.futures import ThreadPoolExecutor
+
+            def run_async_in_thread():
+                async def collect_response():
+                    chunks = []
+                    async for chunk in self.llm_gateway.generate_completion(
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.7
+                    ):
+                        chunks.append(chunk)
+                    return "".join(chunks)
+
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    return new_loop.run_until_complete(collect_response())
+                finally:
+                    new_loop.close()
+
+            with ThreadPoolExecutor() as executor:
+                future = executor.submit(run_async_in_thread)
+                response = future.result()
+            
+            # Log raw response for debugging
+            logger.info("llm_raw_response", response=str(response)[:500] if response else "empty")
+            
+            # Strip markdown code blocks if present
+            if response:
+                response = response.strip()
+                if response.startswith("```"):
+                    response = response.split("```", 2)[1]
+                    if response.startswith("json"):
+                        response = response[4:]
+                    response = response.strip()
+                if response.endswith("```"):
+                    response = response.rsplit("```", 1)[0].strip()
+            
+            # Parse JSON response
+            try:
+                insights = json.loads(response)
+                if not isinstance(insights, list):
+                    insights = [insights]
+                
+                # Validate and format insights
+                formatted_insights = []
+                for insight in insights[:5]:  # Max 5 insights
+                    if isinstance(insight, dict):
+                        formatted_insights.append({
+                            "category": insight.get("category", "general"),
+                            "content": insight.get("content", ""),
+                            "confidence": insight.get("confidence", 0.8)
+                        })
+                
+                logger.info("insights_generated", count=len(formatted_insights))
+                return formatted_insights
+                
+            except json.JSONDecodeError as e:
+                logger.error("insight_json_parse_failed", error=str(e))
+                return []
+                
+        except Exception as e:
+            logger.error("insight_generation_failed", error=str(e))
+            return []
 
 # Global AI service instance
 ai_service = AIService()

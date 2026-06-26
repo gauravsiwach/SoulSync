@@ -8,6 +8,9 @@ from app.api.websocket import router as websocket_router
 from app.api.memory import router as memory_router
 from app.api.goals import router as goals_router
 from app.api.checkins import router as checkins_router
+from app.api.mood import router as mood_router
+from app.api.insights import router as insights_router
+from app.api.notifications import router as notifications_router
 from app.core.logging import configure_logging, get_logger
 from app.core.config import get_settings
 from app.db.database import Base, engine
@@ -32,30 +35,28 @@ async def startup_event():
         Base.metadata.create_all(bind=engine)
         logger.info("database_tables_created", tables=list(Base.metadata.tables.keys()))
         
-        # Migration: Recreate users table for Phase 1 schema
+        # Migration: Add Phase 5 columns to users table
         from sqlalchemy import text, inspect
         try:
             inspector = inspect(engine)
             columns = [col['name'] for col in inspector.get_columns('users')]
             
-            # Check if users table has the correct Phase 1 schema
-            # Phase 1 uses: display_name (not name, not is_active, not fcm_token)
-            has_old_schema = ('name' in columns or 'is_active' in columns or 
-                            'fcm_token' in columns or 'display_name' not in columns)
-            
-            if has_old_schema:
-                logger.info("migration_recreating_users_table_for_phase1")
+            # Add Phase 5 columns if they don't exist
+            if 'fcm_token' not in columns:
+                logger.info("migration_adding_fcm_token_column")
                 with engine.connect() as conn:
-                    # Drop and recreate users table with Phase 1 schema
-                    conn.execute(text('DROP TABLE IF EXISTS users CASCADE'))
+                    conn.execute(text('ALTER TABLE users ADD COLUMN fcm_token TEXT'))
                     conn.commit()
-                logger.info("migration_users_table_dropped")
+                logger.info("migration_fcm_token_column_added")
+            
+            if 'preferred_checkin_time' not in columns:
+                logger.info("migration_adding_preferred_checkin_time_column")
+                with engine.connect() as conn:
+                    conn.execute(text('ALTER TABLE users ADD COLUMN preferred_checkin_time TIME'))
+                    conn.commit()
+                logger.info("migration_preferred_checkin_time_column_added")
                 
-                # Recreate with Phase 1 schema
-                Base.metadata.create_all(bind=engine)
-                logger.info("migration_users_table_recreated_phase1")
-            else:
-                logger.info("migration_users_table_schema_correct_phase1")
+            logger.info("migration_phase5_columns_completed")
         except Exception as migration_error:
             logger.error("migration_failed", error=str(migration_error))
             
@@ -91,6 +92,9 @@ app.include_router(websocket_router, tags=["websocket"])
 app.include_router(memory_router, prefix="/api", tags=["memory"])
 app.include_router(goals_router, prefix="/api", tags=["goals"])
 app.include_router(checkins_router, prefix="/api", tags=["checkins"])
+app.include_router(mood_router, prefix="/api", tags=["mood"])
+app.include_router(insights_router, prefix="/api", tags=["insights"])
+app.include_router(notifications_router, prefix="/api", tags=["notifications"])
 
 
 @app.get("/health")

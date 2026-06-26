@@ -12,6 +12,7 @@ from app.services.embedding_service import embedding_service
 from app.core.llm_gateway import llm_gateway
 from app.db.database import SessionLocal
 from app.models.user_profile import UserProfile
+from app.models.message import Message
 from sqlalchemy.orm import Session
 import openai
 
@@ -30,10 +31,12 @@ Extract the following in this exact JSON format:
   "emotions": ["emotion1", "emotion2"],
   "people_mentioned": ["person1", "person2"],
   "topics": ["topic1", "topic2"],
-  "summary": "A brief summary of what was learned about the user in this conversation"
+  "summary": "A brief summary of what was learned about the user in this conversation",
+  "mood_tag": "positive|negative|neutral|anxious|happy|sad|excited|calm|frustrated|hopeful"
 }}
 
 Keep the summary concise (2-3 sentences). Extract at least 3-5 facts if available. If no facts are available, use empty array.
+Determine the overall mood of the user's most recent message and assign one mood_tag from the list.
 
 Conversation:
 {conversation_text}
@@ -148,6 +151,19 @@ async def extract_memory_from_conversation(
                 
                 db.commit()
                 logger.info(f"memory_extraction_profile_updated", user_id=user_id, facts_count=len(existing_facts))
+            
+            # Update mood_tag on the last user message
+            mood_tag = memory_data.get("mood_tag")
+            if mood_tag:
+                last_user_message = db.query(Message).filter(
+                    Message.conversation_id == conversation_id,
+                    Message.role == "user"
+                ).order_by(Message.created_at.desc()).first()
+                
+                if last_user_message:
+                    last_user_message.mood_tag = mood_tag
+                    db.commit()
+                    logger.info(f"mood_tag_updated", user_id=user_id, mood_tag=mood_tag)
         finally:
             db.close()
         

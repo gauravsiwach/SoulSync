@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from datetime import time as time_class
 from app.core.security import get_current_user
 from app.core.logging import get_logger, log_api_request, log_api_response
 from app.db.database import get_db
@@ -42,6 +43,11 @@ class OnboardingRequest(BaseModel):
     interests: list[str] | None = None
     personal_goals: str | None = None
     trusted_contact: dict | None = None
+
+
+class DeviceRegistrationRequest(BaseModel):
+    fcm_token: str
+    preferred_checkin_time: str | None = None  # Format: "HH:MM"
 
 @router.get("/me", response_model=UserProfileResponse)
 async def get_profile(
@@ -226,3 +232,44 @@ async def complete_onboarding(
     except Exception as e:
         logger.error("onboarding_error", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to complete onboarding")
+
+
+@router.post("/register-device")
+async def register_device(
+    request: DeviceRegistrationRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Register FCM device token for push notifications"""
+    start_time = time.time()
+    log_api_request("POST", "/profile/register-device", current_user["user_id"])
+    
+    try:
+        user = db.query(User).filter(User.id == current_user["user_id"]).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Update FCM token
+        user.fcm_token = request.fcm_token
+        
+        # Update preferred check-in time if provided
+        if request.preferred_checkin_time:
+            try:
+                hours, minutes = map(int, request.preferred_checkin_time.split(':'))
+                user.preferred_checkin_time = time_class(hour=hours, minute=minutes)
+            except (ValueError, AttributeError):
+                logger.warning("invalid_checkin_time_format", time=request.preferred_checkin_time)
+        
+        db.commit()
+        
+        duration = (time.time() - start_time) * 1000
+        log_api_response("POST", "/profile/register-device", 200, duration)
+        logger.info("device_registered", user_id=user.id)
+        
+        return {"status": "success", "message": "Device registered successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("device_registration_error", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to register device")
