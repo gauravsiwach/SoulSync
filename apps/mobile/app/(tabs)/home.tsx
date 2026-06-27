@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { insightsService, Insight } from '../services/insightsService';
 import { moodService, MoodSummary } from '../services/moodService';
+import { riskScoreService } from '../services/riskScoreService';
+import AlertBanner from '../components/AlertBanner';
 
 const MOOD_EMOJIS: Record<string, string> = {
   positive: '😊',
@@ -24,6 +26,8 @@ export default function HomeScreen() {
   const [moodSummary, setMoodSummary] = useState<MoodSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [dismissedInsights, setDismissedInsights] = useState<Set<string>>(new Set());
+  const [riskLevel, setRiskLevel] = useState<'low' | 'medium' | 'high' | 'critical' | null>(null);
+  const [showAlertBanner, setShowAlertBanner] = useState(true);
 
   const loadData = async () => {
     try {
@@ -34,6 +38,14 @@ export default function HomeScreen() {
       ]);
       setInsights(latestInsights);
       setMoodSummary(moodData);
+      
+      // Load risk score
+      const riskScore = await riskScoreService.getLatestRiskScore();
+      if (riskScore && riskScore.overall_level) {
+        setRiskLevel(riskScore.overall_level as 'low' | 'medium' | 'high' | 'critical');
+      } else {
+        setRiskLevel(null);
+      }
     } catch (error) {
       console.error('Error loading home data:', error);
     } finally {
@@ -72,6 +84,14 @@ export default function HomeScreen() {
     return days;
   };
 
+  const handleAlertAction = () => {
+    if (riskLevel === 'medium') {
+      router.push('/trust-circle' as any);
+    } else if (riskLevel === 'high' || riskLevel === 'critical') {
+      router.push('/trust-circle' as any);
+    }
+  };
+
   const getMoodForDay = (date: string) => {
     if (!moodSummary) return null;
     const dayEntry = moodSummary.mood_timeline.find((entry: { date: string; mood: string }) => entry.date === date);
@@ -92,6 +112,13 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {showAlertBanner && riskLevel && (
+        <AlertBanner
+          riskLevel={riskLevel}
+          onDismiss={() => setShowAlertBanner(false)}
+          onAction={handleAlertAction}
+        />
+      )}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Good Morning</Text>

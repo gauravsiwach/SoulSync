@@ -51,6 +51,9 @@ export default function RootLayout() {
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="chat" options={{ title: 'Chat', headerShown: false }} />
         <Stack.Screen name="conversations" options={{ title: 'Conversations' }} />
+        <Stack.Screen name="trust-circle" options={{ title: 'Trust Circle', headerShown: false }} />
+        <Stack.Screen name="add-contact" options={{ title: 'Add Contact', headerShown: false }} />
+        <Stack.Screen name="settings" options={{ title: 'Settings', headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
     </>

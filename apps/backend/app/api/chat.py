@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from app.services.ai_service import ai_service
 from app.core.logging import get_logger, log_api_request, log_api_response, log_error
+from app.tasks.risk_monitoring_tasks import check_crisis_keywords
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -30,6 +31,22 @@ async def chat_stream(message: ChatMessage):
     if not message.message.strip():
         logger.warning("chat_stream_empty_message", user_id=message.user_id)
         raise HTTPException(status_code=400, detail="message cannot be empty")
+    
+    # Check for crisis keywords before normal processing
+    if check_crisis_keywords(message.message):
+        logger.warning("crisis_detected_in_message", user_id=message.user_id)
+        # Queue intervention task immediately
+        from app.tasks.intervention_tasks import send_intervention_notification
+        send_intervention_notification.delay(message.user_id, "critical")
+        
+        # Return crisis response instead of normal AI response
+        crisis_response = "I'm concerned about what you've shared. If you're in immediate danger, please call emergency services (911 in the US) or a crisis hotline like 988 (US) or 116 123 (UK). You matter, and there are people who want to help."
+        
+        async def generate_crisis_response():
+            yield f"data: {crisis_response}\n\n"
+            yield "data: [DONE]\n\n"
+        
+        return StreamingResponse(generate_crisis_response(), media_type="text/event-stream")
     
     logger.info("chat_stream_started", user_id=message.user_id, message_length=len(message.message))
     

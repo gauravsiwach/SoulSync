@@ -11,7 +11,7 @@ class TrustCircleMember(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     name = Column(String, nullable=False)
-    phone = Column(String, nullable=True)
+    phone = Column(String, nullable=False)
     email = Column(String, nullable=True)
-    alert_level = Column(String, nullable=False)  # 'concern' | 'urgent' | 'emergency'
+    alert_level = Column(String, nullable=False, server_default='concern')  # 'concern' | 'urgent' | 'emergency'
     created_at = Column(DateTime(timezone=True), server_default=func.now())

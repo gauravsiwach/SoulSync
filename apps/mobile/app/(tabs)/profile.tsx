@@ -227,6 +227,18 @@ export default function ProfileTabScreen() {
           </Text>
         </View>
 
+        <TouchableOpacity style={styles.trustCircleButton} onPress={() => router.push('/trust-circle')}>
+          <Ionicons name="people" size={20} color="#667eea" />
+          <Text style={styles.trustCircleButtonText}>Manage Trust Circle</Text>
+          <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.settingsButton} onPress={() => router.push('/settings')}>
+          <Ionicons name="settings-outline" size={20} color="#667eea" />
+          <Text style={styles.settingsButtonText}>Settings</Text>
+          <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+        </TouchableOpacity>
+
         <View style={styles.actions}>
           <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
             <Ionicons name="create-outline" size={20} color="#667eea" />
@@ -349,6 +361,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     lineHeight: 20,
+  },
+  trustCircleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  trustCircleButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginLeft: 12,
+    flex: 1,
+  },
+  settingsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  settingsButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginLeft: 12,
+    flex: 1,
   },
   actions: {
     marginTop: 20,

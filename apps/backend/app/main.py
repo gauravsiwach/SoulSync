@@ -11,6 +11,10 @@ from app.api.checkins import router as checkins_router
 from app.api.mood import router as mood_router
 from app.api.insights import router as insights_router
 from app.api.notifications import router as notifications_router
+from app.api.trust_circle import router as trust_circle_router
+from app.api.risk_scores import router as risk_scores_router
+from app.api.settings import router as settings_router
+from app.api.risk_monitor import router as risk_monitor_router
 from app.core.logging import configure_logging, get_logger
 from app.core.config import get_settings
 from app.db.database import Base, engine
@@ -55,8 +59,16 @@ async def startup_event():
                     conn.execute(text('ALTER TABLE users ADD COLUMN preferred_checkin_time TIME'))
                     conn.commit()
                 logger.info("migration_preferred_checkin_time_column_added")
+            
+            # Add Phase 6 columns if they don't exist
+            if 'settings' not in columns:
+                logger.info("migration_adding_settings_column")
+                with engine.connect() as conn:
+                    conn.execute(text('ALTER TABLE users ADD COLUMN settings JSON'))
+                    conn.commit()
+                logger.info("migration_settings_column_added")
                 
-            logger.info("migration_phase5_columns_completed")
+            logger.info("migration_phase6_columns_completed")
         except Exception as migration_error:
             logger.error("migration_failed", error=str(migration_error))
             
@@ -95,6 +107,10 @@ app.include_router(checkins_router, prefix="/api", tags=["checkins"])
 app.include_router(mood_router, prefix="/api", tags=["mood"])
 app.include_router(insights_router, prefix="/api", tags=["insights"])
 app.include_router(notifications_router, prefix="/api", tags=["notifications"])
+app.include_router(trust_circle_router, prefix="/api", tags=["trust-circle"])
+app.include_router(risk_scores_router, prefix="/api", tags=["risk-scores"])
+app.include_router(settings_router, prefix="/api", tags=["settings"])
+app.include_router(risk_monitor_router, prefix="/api", tags=["risk-monitor"])
 
 
 @app.get("/health")

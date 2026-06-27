@@ -154,6 +154,8 @@ async def extract_memory_from_conversation(
             
             # Update mood_tag on the last user message
             mood_tag = memory_data.get("mood_tag")
+            logger.info("mood_tag_extraction_attempt", user_id=user_id, mood_tag=mood_tag, memory_data_keys=list(memory_data.keys()))
+            
             if mood_tag:
                 last_user_message = db.query(Message).filter(
                     Message.conversation_id == conversation_id,
@@ -163,7 +165,11 @@ async def extract_memory_from_conversation(
                 if last_user_message:
                     last_user_message.mood_tag = mood_tag
                     db.commit()
-                    logger.info(f"mood_tag_updated", user_id=user_id, mood_tag=mood_tag)
+                    logger.info("mood_tag_updated", user_id=user_id, message_id=str(last_user_message.id), mood_tag=mood_tag)
+                else:
+                    logger.warning("mood_tag_update_failed_no_user_message", user_id=user_id, conversation_id=conversation_id)
+            else:
+                logger.warning("mood_tag_not_found_in_memory_data", user_id=user_id, memory_data=memory_data)
         finally:
             db.close()
         
@@ -198,8 +204,8 @@ def should_extract_memory(user_id: str, conversation_id: str) -> bool:
                 Message.role == "user"
             ).count()
             
-            # Extract every 5 user messages
-            should_extract = (user_message_count % 5 == 0 and user_message_count > 0)
+            # Extract every 2 user messages for better risk monitoring
+            should_extract = (user_message_count % 2 == 0 and user_message_count > 0)
             
             logger.info(f"memory_extraction_check", user_id=user_id, conversation_id=conversation_id, 
                        user_message_count=user_message_count, should_extract=should_extract)

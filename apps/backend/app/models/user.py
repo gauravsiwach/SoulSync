@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Text, Time
+from sqlalchemy import Column, String, DateTime, Text, Time, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 import uuid
@@ -21,3 +21,6 @@ class User(Base):
     # Phase 5: Notifications & Personalization
     fcm_token = Column(Text, nullable=True)  # Firebase Cloud Messaging token
     preferred_checkin_time = Column(Time, nullable=True)  # User's preferred daily check-in time
+    
+    # Phase 6: Risk Detection & Trust Circle Settings
+    settings = Column(JSON, nullable=True, default=dict)  # User settings as JSON
