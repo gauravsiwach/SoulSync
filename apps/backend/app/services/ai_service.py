@@ -5,7 +5,7 @@ from typing import AsyncGenerator, List, Dict, Optional, Any
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.core.llm_gateway import llm_gateway
-from app.core.prompts import DISCOVERY_SYSTEM_PROMPT, REGULAR_COMPANION_PROMPT, GOAL_COACH_SYSTEM_PROMPT
+from app.core.prompts import DISCOVERY_SYSTEM_PROMPT, REGULAR_COMPANION_PROMPT, GOAL_COACH_SYSTEM_PROMPT, INSIGHT_GENERATION_PROMPT
 from app.services.redis_service import redis_service
 from app.services.memory_extraction_service import should_extract_memory, extract_memory_from_conversation
 from app.services.qdrant_service import qdrant_service
@@ -269,32 +269,13 @@ User Profile:
         """Generate insights from user data using LLM"""
         import asyncio
         try:
-            # Build insight generation prompt
-            prompt = f"""
-You are an insight generator for a personal growth app. Analyze the user's data from the last 7 days and generate 3-5 meaningful insights.
-
-User Data:
-- Memories: {json.dumps(context.get('memories', []), indent=2)}
-- Message count: {context.get('message_count', 0)}
-- Check-in count: {context.get('checkin_count', 0)}
-- Recent check-ins: {json.dumps(context.get('recent_checkins', []), indent=2)}
-
-Generate insights in the following JSON format:
-[
-  {{
-    "category": "mood_trend|goal_drift|positive_pattern|area_of_growth",
-    "content": "Specific insight based on the data",
-    "confidence": 0.0-1.0
-  }}
-]
-
-Guidelines:
-- Keep insights specific and actionable
-- Focus on patterns and trends
-- Be encouraging but realistic
-- Avoid repeating similar insights
-- Maximum 5 insights
-"""
+            # Build insight generation prompt using imported prompt template
+            prompt = INSIGHT_GENERATION_PROMPT.format(
+                memories=json.dumps(context.get('memories', []), indent=2),
+                message_count=context.get('message_count', 0),
+                checkin_count=context.get('checkin_count', 0),
+                recent_checkins=json.dumps(context.get('recent_checkins', []), indent=2)
+            )
 
             # generate_completion is an async generator - collect all chunks in a thread
             from concurrent.futures import ThreadPoolExecutor

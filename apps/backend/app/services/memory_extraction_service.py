@@ -10,6 +10,7 @@ from app.core.logging import get_logger
 from app.services.qdrant_service import qdrant_service
 from app.services.embedding_service import embedding_service
 from app.core.llm_gateway import llm_gateway
+from app.core.prompts import MEMORY_EXTRACTION_PROMPT
 from app.db.database import SessionLocal
 from app.models.user_profile import UserProfile
 from app.models.message import Message
@@ -18,31 +19,6 @@ import openai
 
 settings = get_settings()
 logger = get_logger(__name__)
-
-# Memory extraction prompt
-MEMORY_EXTRACTION_PROMPT = """
-Analyze the following conversation and extract structured information about the user.
-
-You MUST respond with ONLY valid JSON. No other text. Your response must start with {{ and end with }}.
-
-Extract the following in this exact JSON format:
-{{
-  "facts": ["fact1", "fact2"],
-  "emotions": ["emotion1", "emotion2"],
-  "people_mentioned": ["person1", "person2"],
-  "topics": ["topic1", "topic2"],
-  "summary": "A brief summary of what was learned about the user in this conversation",
-  "mood_tag": "positive|negative|neutral|anxious|happy|sad|excited|calm|frustrated|hopeful"
-}}
-
-Keep the summary concise (2-3 sentences). Extract at least 3-5 facts if available. If no facts are available, use empty array.
-Determine the overall mood of the user's most recent message and assign one mood_tag from the list.
-
-Conversation:
-{conversation_text}
-
-Remember: Respond with ONLY the JSON object. No markdown, no explanations, no other text.
-"""
 
 async def extract_memory_from_conversation(
     user_id: str,

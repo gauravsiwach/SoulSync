@@ -475,8 +475,9 @@ ALTER TABLE user_profiles ADD COLUMN risk_monitoring_enabled BOOLEAN DEFAULT tru
 
 ---
 
-## Phase 7 — MVP Hardening & Release
+## Phase 7 — MVP Hardening & Release ⏳ **POSTPONED**
 **Duration:** 4–5 days · **Complexity:** Medium
+**Status:** Postponed for later - will be done when ready for production deployment
 
 ### Frontend
 - Error boundaries on all screens
@@ -534,7 +535,7 @@ ALTER TABLE user_profiles ADD COLUMN risk_monitoring_enabled BOOLEAN DEFAULT tru
 | 4 | Goals & Accountability | 4–5 days |
 | 5 | Insights & Personalization | 4–5 days |
 | 6 | Risk Detection & Trust Circle | 5–6 days |
-| 7 | MVP Hardening & Release | 4–5 days |
+| 7 | MVP Hardening & Release | 4–5 days (POSTPONED) |
 | **Total** | | **34–44 days (~7–9 weeks)** |
 
 ---
